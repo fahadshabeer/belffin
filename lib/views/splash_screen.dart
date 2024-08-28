@@ -16,7 +16,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   void initState() {
-    Timer.periodic(Duration(seconds: 1), (timer) {
+    Timer.periodic(const Duration(seconds: 1), (timer) {
       if (timer.tick == 4) {
         timer.cancel();
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>const Homepage()));

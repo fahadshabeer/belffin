@@ -1,9 +1,10 @@
 import 'dart:developer';
+import 'dart:ui';
 
-import 'package:belffin/utils/constants.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+
+import '../utils/constants.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({Key? key}) : super(key: key);
@@ -20,6 +21,9 @@ class _HomepageState extends State<Homepage> {
   @override
   void initState() {
     controller = WebViewController()
+      ..setOnScrollPositionChange((position) {
+        log("${position.y}");
+      })
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -34,69 +38,72 @@ class _HomepageState extends State<Homepage> {
             log("Error", error: error);
           },
           onWebResourceError: (WebResourceError error) {
+            log("${error.errorType}");
+
             String msg = "";
             if (error.errorType == WebResourceErrorType.connect) {
               msg =
-                  "unable to establish connection. please check your internet and try again";
-            } else if (error.errorType == WebResourceErrorType.timeout) {
-              msg =
-                  "unable to establish connection. please check your internet and try again";
+              "unable to establish connection. please check your internet and try again";
             } else if (error.errorType == WebResourceErrorType.hostLookup) {
               msg =
-                  "unable to lookup host. please check your internet and try again";
-            }else{
-              msg=error.description;
+              "unable to lookup host. please check your internet and try again";
             }
-            if (msg.isNotEmpty) {
+            // else if(error.errorType==WebResourceErrorType.){
+            //
+            // }
+            if (msg.isNotEmpty && !isError.value) {
               isError.value = true;
               showDialog(
                 context: context,
                 barrierDismissible: false,
-                builder: (context) => PopScope(
-                  canPop: false,
-                  child: AlertDialog(
-                    title: const Center(
-                      child: Icon(
-                        Icons.error,
-                        color: Colors.red,
-                        size: 80,
-                      ),
-                    ),
-                    content: SizedBox(
-                      height: 100,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Center(
-                              child: Text(
-                            "Error",
-                            style: TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.w700),
-                          )),
-                          const SizedBox(
-                            height: 10,
+                builder: (context) =>
+                    PopScope(
+                      canPop: false,
+                      child: AlertDialog(
+                        title: const Center(
+                          child: Icon(
+                            Icons.error,
+                            color: Colors.red,
+                            size: 80,
                           ),
-                          Center(
-                            child: Text(
-                              msg,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                            ),
+                        ),
+                        content: SizedBox(
+                          height: 100,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Center(
+                                  child: Text(
+                                    "Error",
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700),
+                                  )),
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              Center(
+                                child: Text(
+                                  msg,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                        actions: [
+                          TextButton(
+                              onPressed: () {
+                                controller.reload();
+                                isError.value=false;
+                                Navigator.pop(context);
+                              },
+                              child: const Text("Reload"))
                         ],
                       ),
                     ),
-                    actions: [
-                      TextButton(
-                          onPressed: () {
-                            controller.reload();
-                            Navigator.pop(context);
-                          },
-                          child: const Text("Reload"))
-                    ],
-                  ),
-                ),
               );
             }
           },
@@ -112,48 +119,62 @@ class _HomepageState extends State<Homepage> {
     super.initState();
   }
 
+  Future<void> _reloadPage() async {
+
+    controller.reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-          child: RefreshIndicator(
-        onRefresh: () async {
-          controller.reload();
-        },
-        child: SingleChildScrollView(
-          child: SizedBox(
-            height: MediaQuery.of(context).size.height,
-            child: Stack(
-              children: [
-                WebViewWidget(controller: controller),
-                ValueListenableBuilder(
-                    valueListenable: isError,
-                    builder: (context, err, child) {
-                      return Visibility(
-                        visible: err,
-                        child: Container(
-                          height: MediaQuery.of(context).size.height,
-                          width: MediaQuery.of(context).size.width,
-                          decoration: const BoxDecoration(color: Colors.white),
-                        ),
-                      );
-                    }),
-                ValueListenableBuilder(
-                  builder: (context, val, _) {
-                    return Visibility(
-                      visible: val,
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  },
-                  valueListenable: isLoading,
-                ),
-              ],
+        child: Stack(
+          children: [
+            WebViewWidget(
+              controller: controller,
+              gestureRecognizers: {}, // Keep this for handling gestures
             ),
-          ),
+            ValueListenableBuilder(
+              valueListenable: isError,
+              builder: (context, err, child) {
+                return Visibility(
+                  visible: err,
+                  child: Container(
+                    height: MediaQuery
+                        .of(context)
+                        .size
+                        .height,
+                    width: MediaQuery
+                        .of(context)
+                        .size
+                        .width,
+                    color: Colors.white,
+                    child: Center(
+                      child: Text(
+                        "Error loading page. Please try again.",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            Positioned(
+              child: ValueListenableBuilder(
+                builder: (context, val, _) {
+                  return Visibility(
+                    visible: val,
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                },
+                valueListenable: isLoading,
+              ),
+            ),
+          ],
         ),
-      )),
+      ),
     );
   }
 }
